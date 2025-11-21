@@ -176,4 +176,4 @@ MIT License - Uso livre para projetos pessoais e comerciais.
 
 ---
 
-**Desenvolvido com ❤️ para facilitar a gestão de inventário de TI**
+**Desenvolvido com ❤️ para facilitar a gestão de inventário de TI e Tecnologias**
