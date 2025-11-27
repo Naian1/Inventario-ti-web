@@ -21,5 +21,19 @@ export type InventoryData = {
   categories: Category[];
   fields: Field[];
   items: Item[];
+  activities?: Activity[];
+  duplicateConfig?: DuplicateConfig;
   users: { username: string; role: 'admin' | 'user' }[];
+};
+
+export type Activity = {
+  id: string;
+  type: 'info' | 'import' | 'create' | 'update' | 'delete' | 'warning';
+  title: string;
+  description?: string;
+  time: string; // ISO timestamp
+};
+
+export type DuplicateConfig = {
+  fields: string[]; // keys to check for duplicates across categories
 };

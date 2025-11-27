@@ -5,7 +5,9 @@ import { getInitialData } from '@/lib/localStorage';
 import type { Category, Item } from '@/lib/types';
 import Link from 'next/link';
 import { InlineImport } from '@/components/InlineImport';
-import { StatsCard, CategoryDistribution, RecentActivity } from '@/components/DashboardWidgets';
+import { StatsCard, CategoryDistribution, RecentActivity, DuplicateMonitor } from '@/components/DashboardWidgets';
+import DuplicateConfigPanel from '@/components/DuplicateConfigPanel';
+import DuplicateWarnings from '@/components/DuplicateWarnings';
 
 export default function DashboardPage() {
   const [data, setData] = useState<{
@@ -103,10 +105,17 @@ export default function DashboardPage() {
 
             {/* Category Distribution */}
             <CategoryDistribution />
+              <div className="mt-6">
+                <DuplicateConfigPanel />
+                <div className="mt-4">
+                  <DuplicateWarnings />
+                </div>
+              </div>
           </div>
 
           {/* Sidebar Widgets */}
           <div className="space-y-6">
+            <DuplicateMonitor />
             <RecentActivity />
           </div>
         </div>

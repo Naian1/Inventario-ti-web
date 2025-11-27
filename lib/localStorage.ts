@@ -1,5 +1,6 @@
 import { InventoryData } from './types';
 import { nanoid } from 'nanoid';
+import type { Activity, DuplicateConfig } from './types';
 
 const STORAGE_KEY = 'inventoryData';
 const USER_KEY = 'currentUser';
@@ -33,6 +34,8 @@ export function getInitialData(): InventoryData {
     categories: [],
     fields: [],
     items: [],
+    activities: [],
+    duplicateConfig: { fields: [] },
     users: [
       { username: 'admin', role: 'admin' },
       { username: 'usuario', role: 'user' },
@@ -45,6 +48,37 @@ export function getInitialData(): InventoryData {
 export function saveData(data: InventoryData) {
   if (typeof window === 'undefined') return;
   localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+}
+
+export function addActivity(act: Omit<Activity, 'id' | 'time'>) {
+  if (typeof window === 'undefined') return;
+  const data = getInitialData();
+  const activity: Activity = {
+    id: nanoid(),
+    time: new Date().toISOString(),
+    ...act,
+  } as Activity;
+  data.activities = data.activities || [];
+  data.activities.unshift(activity);
+  // keep last 200 activities
+  if (data.activities.length > 200) data.activities = data.activities.slice(0, 200);
+  saveData(data);
+}
+
+export function getActivities(): Activity[] {
+  const data = getInitialData();
+  return data.activities || [];
+}
+
+export function getDuplicateConfig(): DuplicateConfig {
+  const data = getInitialData();
+  return data.duplicateConfig || { fields: [] };
+}
+
+export function saveDuplicateConfig(cfg: DuplicateConfig) {
+  const data = getInitialData();
+  data.duplicateConfig = cfg;
+  saveData(data);
 }
 
 export function getCurrentUser() {

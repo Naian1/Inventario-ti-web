@@ -20,7 +20,7 @@ export function CategoryManager({ onClose, onSuccess }: { onClose: () => void; o
     setFields(fields.filter((_, i) => i !== index));
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!categoryName.trim()) {
       alert('Digite um nome para a categoria');
       return;
@@ -43,6 +43,10 @@ export function CategoryManager({ onClose, onSuccess }: { onClose: () => void; o
     data.categories.push(newCategory);
     data.fields.push(...newFields);
     saveData(data);
+    try {
+      const { addActivity } = await import('@/lib/localStorage');
+      addActivity({ type: 'create', title: 'Nova Categoria', description: `Categoria ${categoryName} criada` });
+    } catch (e) {}
 
     alert(`✅ Categoria "${categoryName}" criada com sucesso!`);
     onSuccess();

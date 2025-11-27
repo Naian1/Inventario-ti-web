@@ -1,10 +1,11 @@
 'use client';
 import { useEffect, useState, useMemo } from 'react';
-import { getInitialData, saveData } from '@/lib/localStorage';
+import { getInitialData, saveData, getDuplicateConfig } from '@/lib/localStorage';
 import type { Category, Item, Field } from '@/lib/types';
 import Link from 'next/link';
 import Layout from '@/components/Layout';
 import { nanoid } from 'nanoid';
+import { showToast } from '@/lib/toast';
 
 export default function CategoryPage({ params }: { params: { id: string } }) {
   const [category, setCategory] = useState<Category | null>(null);
@@ -105,7 +106,7 @@ export default function CategoryPage({ params }: { params: { id: string } }) {
     });
   };
 
-  const saveItem = () => {
+  const saveItem = async () => {
     if (!editingItem) return;
     
     const data = getInitialData();
@@ -115,18 +116,22 @@ export default function CategoryPage({ params }: { params: { id: string } }) {
       saveData(data);
       setEditingItem(null);
       loadData();
-      alert('✅ Item atualizado com sucesso!');
+      showToast.success('Item atualizado com sucesso!', { autoClose: 2000 });
+      try {
+        const { addActivity } = await import('@/lib/localStorage');
+        addActivity({ type: 'update', title: 'Item atualizado', description: `Item ${editingItem.id} atualizado na categoria ${params.id}` });
+      } catch (e) {}
     }
   };
 
   const deleteItem = (itemId: string) => {
-    if (!confirm('Tem certeza que deseja excluir este item?')) return;
+    if (!confirm('🗑️ Tem certeza que deseja excluir este item?\n\nEsta ação não pode ser desfeita.')) return;
     
     const data = getInitialData();
     data.items = data.items.filter((i) => i.id !== itemId);
     saveData(data);
     loadData();
-    alert('✅ Item excluído com sucesso!');
+    showToast.success('Item excluído com sucesso!', { autoClose: 2000 });
   };
 
   const openAddItemModal = () => {
@@ -145,12 +150,109 @@ export default function CategoryPage({ params }: { params: { id: string } }) {
       categoryId: params.id,
       ...newItem
     };
+
+    // Duplicate check based on configured fields
+    const dupCfg = getDuplicateConfig();
+    const dupFields = dupCfg && dupCfg.fields ? dupCfg.fields : [];
+    function normalizeValue(v: any) {
+      if (v === null || v === undefined) return '';
+      return String(v).trim().toLowerCase();
+    }
+
+    let skipAdd = false;
+    if (dupFields && dupFields.length > 0) {
+      console.log('🔍 Verificando duplicados ao adicionar item:');
+      console.log('  - Campos configurados:', dupFields);
+      console.log('  - Item sendo adicionado:', item);
+      console.log('  - Total de items no inventário:', data.items.length);
+      
+      // Nova abordagem: verificar CADA campo individualmente
+      const duplicatesByField: Array<{ field: string; value: string; matches: any[] }> = [];
+      
+      dupFields.forEach(field => {
+        const newValue = item[field];
+        if (newValue !== undefined && newValue !== null) {
+          const normalized = normalizeValue(newValue);
+          if (normalized.length > 0) {
+            console.log(`  - Verificando campo "${field}" com valor "${newValue}" (normalizado: "${normalized}")`);
+            
+            const matches = data.items.filter(existingItem => {
+              const existingValue = existingItem[field];
+              if (existingValue === undefined || existingValue === null) return false;
+              const existingNormalized = normalizeValue(existingValue);
+              const isMatch = existingNormalized === normalized;
+              if (isMatch) {
+                console.log(`    ✅ Match encontrado! Item ${existingItem.id} tem ${field}="${existingValue}"`);
+              }
+              return isMatch;
+            });
+            
+            if (matches.length > 0) {
+              console.log(`  ⚠️ Campo "${field}" duplicado! ${matches.length} item(ns) encontrado(s)`);
+              duplicatesByField.push({ field, value: String(newValue), matches });
+            } else {
+              console.log(`  ✓ Campo "${field}" único (sem duplicados)`);
+            }
+          }
+        }
+      });
+      
+      if (duplicatesByField.length > 0) {
+        console.log(`  ⚠️ Total de campos duplicados: ${duplicatesByField.length}`);
+        
+        let warningMsg = `⚠️ ATENÇÃO: POSSÍVEL DUPLICADO ENCONTRADO!\n\n`;
+        warningMsg += `Foram encontrados ${duplicatesByField.length} campo(s) com valores duplicados:\n\n`;
+        
+        duplicatesByField.forEach(dup => {
+          warningMsg += `📌 Campo "${dup.field}" = "${dup.value}"\n`;
+          warningMsg += `   ${dup.matches.length} item(ns) já existente(s):\n\n`;
+          dup.matches.forEach((m, idx) => {
+            const cat = data.categories.find(c => c.id === m.categoryId);
+            const catName = cat ? cat.name : 'Desconhecida';
+            warningMsg += `   ${idx + 1}. Categoria: ${catName}\n`;
+            warningMsg += `      ID: ${m.id}\n`;
+            // Mostrar outros campos importantes do item duplicado
+            const importantFields = ['hostname', 'ip', 'patrimonio', 'setor', 'local'];
+            importantFields.forEach(f => {
+              if (m[f] && m[f] !== dup.value) {
+                warningMsg += `      ${f}: ${m[f]}\n`;
+              }
+            });
+            warningMsg += `\n`;
+          });
+        });
+        
+        warningMsg += `\nDeseja adicionar este item mesmo assim?`;
+        
+        console.log('  📢 Mostrando alerta ao usuário...');
+        const go = typeof window !== 'undefined' ? window.confirm(warningMsg) : true;
+        
+        if (!go) {
+          console.log('  ❌ Usuário cancelou adição');
+          skipAdd = true;
+          showToast.warning('Item não foi adicionado', { autoClose: 2500 });
+        } else {
+          console.log('  ✅ Usuário confirmou adição apesar dos duplicados');
+          showToast.info('Item adicionado mesmo com duplicados detectados', { autoClose: 3000 });
+        }
+      } else {
+        console.log('  ✓ Nenhum campo duplicado encontrado - item único!');
+      }
+    } else {
+      console.log('  ℹ️ Nenhum campo configurado para detecção de duplicados');
+    }
+
+    if (skipAdd) {
+      // user cancelled adding due to duplicate
+      return;
+    }
+
     data.items.push(item);
     saveData(data);
     setAddingItem(false);
     setNewItem({});
     loadData();
-    alert('✅ Item adicionado com sucesso!');
+    showToast.success('Item adicionado com sucesso!', { autoClose: 2000 });
   };
 
   if (!category) {

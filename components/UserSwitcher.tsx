@@ -7,8 +7,8 @@ export function UserSwitcher() {
   const [isOpen, setIsOpen] = useState(false);
 
   const users = [
-    { username: 'admin', role: 'admin' as const, label: '👑 Admin', color: 'from-purple-500 to-purple-600' },
-    { username: 'usuario', role: 'user' as const, label: '👤 Usuário', color: 'from-blue-500 to-blue-600' },
+    { username: 'admin', role: 'admin' as const, label: 'Admin' },
+    { username: 'usuario', role: 'user' as const, label: 'Usuário' },
   ];
 
   const switchUser = (user: { username: string; role: 'admin' | 'user' }) => {
@@ -21,15 +21,16 @@ export function UserSwitcher() {
   const currentUserData = users.find(u => u.username === currentUser.username) || users[0];
 
   return (
-    <div className="relative">
+    <div className="relative user-switcher">
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className={`w-full p-3 rounded-lg bg-gradient-to-br ${currentUserData.color} text-white hover:shadow-lg transition-all`}
+        className={`user-btn w-full p-3 rounded-lg bg-white/5 dark:bg-gray-800 text-gray-900 dark:text-white transition-all flex items-center justify-between`}
       >
-        <div className="flex items-center justify-between">
-          <div className="text-left">
-            <div className="text-xs opacity-80">Logado como</div>
-            <div className="font-semibold">{currentUserData.label}</div>
+        <div className="flex items-center gap-3 w-full">
+          <div className="avatar w-9 h-9 rounded-lg bg-black text-white flex items-center justify-center font-semibold border-2 border-black shadow-sm">{currentUserData.username[0].toUpperCase()}</div>
+          <div className="user-info flex-1 text-center">
+            <div className="text-xs opacity-80 user-label">Logado como</div>
+            <div className="font-semibold user-name">{currentUserData.label}</div>
           </div>
           <svg className={`w-4 h-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />

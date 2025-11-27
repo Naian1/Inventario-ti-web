@@ -5,6 +5,7 @@ import { buildSearchIndex, searchInventory } from '@/lib/search';
 import { getInitialData } from '@/lib/localStorage';
 import Link from 'next/link';
 import { SearchResultsModal } from './SearchResultsModal';
+import { showToast } from '@/lib/toast';
 
 export function SearchBar() {
   const [open, setOpen] = useState(false);
@@ -344,7 +345,7 @@ export function SearchBar() {
                     }
                     
                     if (filteredItems.length === 0) {
-                      alert('Nenhum resultado encontrado com os filtros aplicados');
+                      showToast.info('Nenhum resultado encontrado com os filtros aplicados', { autoClose: 2500 });
                       return;
                     }
                     
