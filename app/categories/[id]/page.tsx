@@ -6,6 +6,7 @@ import Link from 'next/link';
 import Layout from '@/components/Layout';
 import { nanoid } from 'nanoid';
 import { showToast } from '@/lib/toast';
+import { DuplicateConfirmModal } from '@/components/DuplicateConfirmModal';
 
 export default function CategoryPage({ params }: { params: { id: string } }) {
   const [category, setCategory] = useState<Category | null>(null);
@@ -14,12 +15,23 @@ export default function CategoryPage({ params }: { params: { id: string } }) {
   const [editingItem, setEditingItem] = useState<Item | null>(null);
   const [addingItem, setAddingItem] = useState(false);
   const [newItem, setNewItem] = useState<Record<string, any>>({});
+  const [showDuplicateModal, setShowDuplicateModal] = useState(false);
+  const [pendingDuplicates, setPendingDuplicates] = useState<Array<{field: string; value: string; matches: any[]}>>([]);
+  const [pendingItem, setPendingItem] = useState<Item | null>(null);
   const [columnFilters, setColumnFilters] = useState<Record<string, string>>({});
   const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>(null);
 
   useEffect(() => {
     loadData();
   }, [params.id]);
+
+  useEffect(() => {
+    console.log('🔔 Modal state changed:', { 
+      showDuplicateModal, 
+      hasDuplicates: pendingDuplicates.length > 0,
+      hasItem: !!pendingItem 
+    });
+  }, [showDuplicateModal, pendingDuplicates, pendingItem]);
 
   const loadData = () => {
     const data = getInitialData();
@@ -143,6 +155,31 @@ export default function CategoryPage({ params }: { params: { id: string } }) {
     setAddingItem(true);
   };
 
+  const confirmAddDuplicate = () => {
+    if (!pendingItem) return;
+    
+    console.log('  ✅ Usuário confirmou adição apesar dos duplicados');
+    const data = getInitialData();
+    data.items.push(pendingItem);
+    saveData(data);
+    setAddingItem(false);
+    setNewItem({});
+    setShowDuplicateModal(false);
+    setPendingDuplicates([]);
+    setPendingItem(null);
+    loadData();
+    showToast.success('Item adicionado com sucesso!', { autoClose: 2000 });
+    showToast.info('Item adicionado mesmo com duplicados detectados', { autoClose: 3000 });
+  };
+
+  const cancelAddDuplicate = () => {
+    console.log('  ❌ Usuário cancelou adição');
+    setShowDuplicateModal(false);
+    setPendingDuplicates([]);
+    setPendingItem(null);
+    showToast.warning('Item não foi adicionado', { autoClose: 2500 });
+  };
+
   const addNewItem = () => {
     const data = getInitialData();
     const item: Item = {
@@ -199,42 +236,20 @@ export default function CategoryPage({ params }: { params: { id: string } }) {
       
       if (duplicatesByField.length > 0) {
         console.log(`  ⚠️ Total de campos duplicados: ${duplicatesByField.length}`);
+        console.log('  📢 Mostrando modal de confirmação...');
+        console.log('  📝 Duplicados:', duplicatesByField);
         
-        let warningMsg = `⚠️ ATENÇÃO: POSSÍVEL DUPLICADO ENCONTRADO!\n\n`;
-        warningMsg += `Foram encontrados ${duplicatesByField.length} campo(s) com valores duplicados:\n\n`;
+        // Mostrar modal de confirmação em vez de window.confirm()
+        setPendingDuplicates(duplicatesByField);
+        setPendingItem(item);
+        setShowDuplicateModal(true);
         
-        duplicatesByField.forEach(dup => {
-          warningMsg += `📌 Campo "${dup.field}" = "${dup.value}"\n`;
-          warningMsg += `   ${dup.matches.length} item(ns) já existente(s):\n\n`;
-          dup.matches.forEach((m, idx) => {
-            const cat = data.categories.find(c => c.id === m.categoryId);
-            const catName = cat ? cat.name : 'Desconhecida';
-            warningMsg += `   ${idx + 1}. Categoria: ${catName}\n`;
-            warningMsg += `      ID: ${m.id}\n`;
-            // Mostrar outros campos importantes do item duplicado
-            const importantFields = ['hostname', 'ip', 'patrimonio', 'setor', 'local'];
-            importantFields.forEach(f => {
-              if (m[f] && m[f] !== dup.value) {
-                warningMsg += `      ${f}: ${m[f]}\n`;
-              }
-            });
-            warningMsg += `\n`;
-          });
+        console.log('  ✅ States atualizados:', { 
+          showModal: true, 
+          duplicatesCount: duplicatesByField.length,
+          itemId: item.id 
         });
-        
-        warningMsg += `\nDeseja adicionar este item mesmo assim?`;
-        
-        console.log('  📢 Mostrando alerta ao usuário...');
-        const go = typeof window !== 'undefined' ? window.confirm(warningMsg) : true;
-        
-        if (!go) {
-          console.log('  ❌ Usuário cancelou adição');
-          skipAdd = true;
-          showToast.warning('Item não foi adicionado', { autoClose: 2500 });
-        } else {
-          console.log('  ✅ Usuário confirmou adição apesar dos duplicados');
-          showToast.info('Item adicionado mesmo com duplicados detectados', { autoClose: 3000 });
-        }
+        return; // Interromper aqui, continua no callback do modal
       } else {
         console.log('  ✓ Nenhum campo duplicado encontrado - item único!');
       }
@@ -264,13 +279,21 @@ export default function CategoryPage({ params }: { params: { id: string } }) {
             <Link href="/painel" className="text-blue-600 hover:underline">
               Voltar ao Painel
             </Link>
-          </div>
         </div>
-      </Layout>
-    );
-  }
+      </div>
 
-  return (
+      {/* Modal de confirmação de duplicados */}
+      {showDuplicateModal && pendingDuplicates.length > 0 && (
+        <DuplicateConfirmModal
+          duplicates={pendingDuplicates}
+          categories={getInitialData().categories}
+          onConfirm={confirmAddDuplicate}
+          onCancel={cancelAddDuplicate}
+        />
+      )}
+    </Layout>
+  );
+}  return (
     <Layout>
       <div className="content">
         <div className="mb-6 flex items-center justify-between">
@@ -470,6 +493,16 @@ export default function CategoryPage({ params }: { params: { id: string } }) {
               </div>
             </div>
           </div>
+        )}
+
+        {/* Modal de confirmação de duplicados */}
+        {showDuplicateModal && pendingDuplicates.length > 0 && (
+          <DuplicateConfirmModal
+            duplicates={pendingDuplicates}
+            categories={getInitialData().categories}
+            onConfirm={confirmAddDuplicate}
+            onCancel={cancelAddDuplicate}
+          />
         )}
       </div>
     </Layout>
