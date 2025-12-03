@@ -1,6 +1,6 @@
 import { InventoryData } from './types';
 import { nanoid } from 'nanoid';
-import type { Activity, DuplicateConfig } from './types';
+import type { Activity, DuplicateConfig, MovementHistory, ReturnRecord } from './types';
 
 const STORAGE_KEY = 'inventoryData';
 const USER_KEY = 'currentUser';
@@ -111,4 +111,88 @@ export function canManageCategories(): boolean {
 export function canAddItems(): boolean {
   // Todos podem adicionar itens
   return true;
+}
+
+// Movement History Functions
+export function addMovement(movement: Omit<MovementHistory, 'id' | 'timestamp' | 'userName'>) {
+  if (typeof window === 'undefined') return;
+  const data = getInitialData();
+  const user = getCurrentUser();
+  
+  const newMovement: MovementHistory = {
+    id: nanoid(),
+    timestamp: new Date().toISOString(),
+    userName: user.username,
+    ...movement,
+  } as MovementHistory;
+  
+  data.movementHistory = data.movementHistory || [];
+  data.movementHistory.unshift(newMovement);
+  
+  // Keep last 1000 movements
+  if (data.movementHistory.length > 1000) {
+    data.movementHistory = data.movementHistory.slice(0, 1000);
+  }
+  
+  saveData(data);
+  return newMovement;
+}
+
+export function getItemHistory(itemId: string): MovementHistory[] {
+  const data = getInitialData();
+  if (!data.movementHistory) return [];
+  return data.movementHistory.filter(m => m.itemId === itemId);
+}
+
+export function getAllMovements(): MovementHistory[] {
+  const data = getInitialData();
+  return data.movementHistory || [];
+}
+
+export function getRecentMovements(limit: number = 50): MovementHistory[] {
+  const data = getInitialData();
+  if (!data.movementHistory) return [];
+  return data.movementHistory.slice(0, limit);
+}
+
+// Return Records Functions
+export function addReturnRecord(returnData: Omit<ReturnRecord, 'id' | 'timestamp' | 'userName'>) {
+  if (typeof window === 'undefined') return;
+  const data = getInitialData();
+  const user = getCurrentUser();
+  
+  const newReturn: ReturnRecord = {
+    id: nanoid(),
+    timestamp: new Date().toISOString(),
+    userName: user.username,
+    ...returnData,
+  } as ReturnRecord;
+  
+  data.returnRecords = data.returnRecords || [];
+  data.returnRecords.unshift(newReturn);
+  
+  saveData(data);
+  return newReturn;
+}
+
+export function getAllReturnRecords(): ReturnRecord[] {
+  const data = getInitialData();
+  return data.returnRecords || [];
+}
+
+export function getReturnRecordsByItem(itemId: string): ReturnRecord[] {
+  const data = getInitialData();
+  if (!data.returnRecords) return [];
+  return data.returnRecords.filter(r => r.itemId === itemId);
+}
+
+export function updateReturnRecord(id: string, updates: Partial<ReturnRecord>) {
+  const data = getInitialData();
+  if (!data.returnRecords) return;
+  
+  const index = data.returnRecords.findIndex(r => r.id === id);
+  if (index !== -1) {
+    data.returnRecords[index] = { ...data.returnRecords[index], ...updates };
+    saveData(data);
+  }
 }

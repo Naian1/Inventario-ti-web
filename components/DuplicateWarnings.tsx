@@ -23,7 +23,7 @@ export default function DuplicateWarnings() {
     setRunning(true);
     try {
       const data = getInitialData();
-      console.log('🔎 Detector de Duplicados iniciado');
+      console.log('[Detector] Iniciando verificação de duplicados...');
       console.log('  - Campos configurados:', fields);
       console.log('  - Total de items:', data.items?.length || 0);
       
@@ -81,13 +81,13 @@ export default function DuplicateWarnings() {
       const found: Array<{ key: string; items: Item[]; field: string }> = [];
       
       fieldMaps.forEach((fieldMap, field) => {
-        console.log(`\n  🔍 Verificando campo "${field}":`);
+        console.log(`\n  [Detector] Verificando campo "${field}":`);
         let duplicatesInField = 0;
         
         fieldMap.forEach((items, value) => {
           if (items.length > 1) {
             duplicatesInField++;
-            console.log(`    ✅ Duplicado! Valor: "${value}" - ${items.length} items`);
+            console.log(`    [!] Duplicado encontrado! Valor: "${value}" - ${items.length} items`);
             items.forEach(it => console.log(`      - Item ID: ${it.id} (Categoria: ${it.categoryId})`));
             
             found.push({ 
@@ -130,6 +130,8 @@ export default function DuplicateWarnings() {
 
   const exportCsv = () => {
     if (groups.length === 0) return showToast.warning('Nenhum duplicado para exportar');
+    
+    showToast.success(`Exportando ${groups.length} grupos de duplicados...`);
     const rows: string[] = [];
     rows.push(['group_id','item_id','category_id','values'].join(','));
     groups.forEach((g, idx) => {
@@ -167,19 +169,44 @@ export default function DuplicateWarnings() {
       </div>
 
       {fields.length === 0 ? (
-        <div className="text-sm text-gray-500">
-          ⚠️ Nenhum campo configurado. Vá em "Configurar Duplicados" acima para selecionar campos.
-          <br />
-          <small className="text-xs text-gray-400">Selecione apenas 1-2 campos chave para melhor detecção</small>
+        <div className="text-sm text-gray-500 flex items-start gap-2">
+          <svg className="w-5 h-5 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+            <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd"/>
+          </svg>
+          <div>
+            Nenhum campo configurado. Vá em "Configurar Duplicados" acima para selecionar campos.
+            <br />
+            <small className="text-xs text-gray-400">Selecione apenas 1-2 campos chave para melhor detecção</small>
+          </div>
         </div>
       ) : groups.length === 0 ? (
         <div className="text-sm">
-          {running ? '⏳ Processando...' : (
+          {running ? (
+            <div className="flex items-center gap-2 text-blue-600">
+              <svg className="animate-spin w-5 h-5" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
+              </svg>
+              Processando...
+            </div>
+          ) : (
             <div>
-              <div className="text-green-600 font-medium">✓ Nenhum duplicado encontrado</div>
+              <div className="text-green-600 font-medium flex items-center gap-2">
+                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"/>
+                </svg>
+                Nenhum duplicado encontrado
+              </div>
               <div className="text-xs text-gray-500 mt-2">
                 <strong>Campos monitorados:</strong> {fields.join(', ')}
-                {fields.length > 3 && <span className="text-yellow-600"> ⚠️ ({fields.length} campos - muitos campos dificultam encontrar duplicados!)</span>}
+                {fields.length > 3 && (
+                  <span className="text-yellow-600 inline-flex items-center gap-1">
+                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd"/>
+                    </svg>
+                    ({fields.length} campos - muitos campos dificultam encontrar duplicados!)
+                  </span>
+                )}
               </div>
               <div className="text-xs text-gray-400 mt-1">
                 Busca em TODAS as categorias | 
@@ -194,10 +221,13 @@ export default function DuplicateWarnings() {
           {groups.map((g, i) => {
             const [field, value] = g.key.split('=');
             return (
-              <div key={i} className="p-3 border border-red-200 dark:border-red-800 rounded-lg bg-red-50 dark:bg-red-900/10">
+              <div key={i} className="p-3 border border-red-200 dark:border-red-800 rounded-lg bg-red-50 dark:bg-red-900/10 animate-fade-in">
                 <div className="flex items-center justify-between mb-2">
-                  <div className="text-sm font-medium text-red-900 dark:text-red-100">
-                    ⚠️ Duplicado no campo "{field}" — {g.items.length} itens com valor "{value}"
+                  <div className="text-sm font-medium text-red-900 dark:text-red-100 flex items-center gap-2">
+                    <svg className="w-5 h-5 flex-shrink-0 animate-pulse" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd"/>
+                    </svg>
+                    <span>Duplicado no campo "{field}" — {g.items.length} itens com valor "{value}"</span>
                   </div>
                 </div>
                 <div className="text-sm space-y-2 mt-3 max-h-96 overflow-y-auto">
